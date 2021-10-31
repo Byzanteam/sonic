@@ -1,18 +1,19 @@
-FROM rustlang/rust:nightly-buster-slim AS build
+FROM rust:1.56-alpine AS builder
 
-RUN apt-get update
-RUN apt-get install -y build-essential clang
+RUN apk add alpine-sdk autoconf clang clang-static linux-headers
 
 WORKDIR /app
 COPY . /app
-RUN cargo clean && cargo build --release --target x86_64-unknown-linux-gnu
-RUN strip ./target/x86_64-unknown-linux-gnu/release/sonic
 
-FROM debian:buster-slim
+# RUN cargo build --release
+RUN RUSTFLAGS="-C target-feature=-crt-static" cargo build --release
+RUN strip ./target/release/sonic
+
+FROM rust:1.56-alpine
 
 WORKDIR /usr/src/sonic
 
-COPY --from=build /app/target/x86_64-unknown-linux-gnu/release/sonic /usr/local/bin/sonic
+COPY --from=builder /app/target/release/sonic /usr/local/bin/sonic
 
 CMD [ "sonic", "-c", "/etc/sonic.cfg" ]
 
